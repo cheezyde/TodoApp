@@ -6,17 +6,20 @@
 //
 
 import UIKit
+import CoreData
 
 class ToDoListViewController: UITableViewController {
     
     var items = [Item]()
-    var itemsString = [String]()
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appending(path: "Items.plist")
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+    
+
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
         print(dataFilePath)
-        
+       
        
 //
 //        let newItem = Item()
@@ -31,9 +34,9 @@ class ToDoListViewController: UITableViewController {
 //        items.append(newItem)
 //        items.append(newItem2)
 //        items.append(newItem3)
-        
+//
         loadData()
-        
+//
         
 //        if let array = defaults.array(forKey: "itemsArray") {
 //            print(array)
@@ -98,16 +101,17 @@ class ToDoListViewController: UITableViewController {
         print("pressed")
         let alert = UIAlertController(title: "Add a new item", message: "smth", preferredStyle: .alert)
         let action = UIAlertAction(title: "add item", style: .default) { alert in
-            if let text = textField.text{
-                let newItem = Item()
-                newItem.title = text
-                self.itemsString.append(text)
-                self.items.append(newItem)
-                self.saveData()
-//                self.defaults.set(self.itemsString, forKey: "itemsArray")
-                
-                
-            }
+
+            
+            let newItem = Item(context: self.context)
+            newItem.title = textField.text!
+            newItem.isSelected = false
+            self.items.append(newItem)
+            self.saveData()
+            //                self.defaults.set(self.itemsString, forKey: "itemsArray")
+            
+            
+            
         }
         alert.addTextField { alertTextField in
             alertTextField.placeholder = "new item"
@@ -119,8 +123,7 @@ class ToDoListViewController: UITableViewController {
     func saveData() {
         let encoder = PropertyListEncoder()
         do {
-            let data = try encoder.encode(items)
-            try data.write(to: dataFilePath!)
+            try context.save()
         } catch {
             print(error)
         }
@@ -129,18 +132,15 @@ class ToDoListViewController: UITableViewController {
     }
     
     func loadData() {
-
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            
-            do{
-                items = try decoder.decode([Item].self, from: data)
-            } catch {
-                print("error while decoding: \(error)")
-            }
-                
+        let request: NSFetchRequest<Item> = Item.fetchRequest()
+        do {
+           items = try context.fetch(request)
             
         }
+        catch {
+            print("Error fetching from context: \(error)")
+        }
+
     }
 }
 
