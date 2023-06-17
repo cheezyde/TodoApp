@@ -131,8 +131,7 @@ class ToDoListViewController: UITableViewController {
         tableView.reloadData()
     }
     
-    func loadData() {
-        let request: NSFetchRequest<Item> = Item.fetchRequest()
+    func loadData(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
         do {
            items = try context.fetch(request)
             
@@ -142,7 +141,26 @@ class ToDoListViewController: UITableViewController {
         }
 
     }
+    func deleteItem(index:Int) {
+        context.delete(items[index])
+        items.remove(at: index)
+        saveData()
+    }
 }
 
+//MARK: - SearchBar
+
+extension ToDoListViewController: UISearchBarDelegate {
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        print(searchBar.text)
+        let request: NSFetchRequest<Item> = Item.fetchRequest()
+        let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text! )
+        request.predicate = predicate
+        let sortDescriptor = NSSortDescriptor(key: "title", ascending: true)
+        request.sortDescriptors = [sortDescriptor]
+        loadData(with: request)
+        
+    }
+}
 
 
