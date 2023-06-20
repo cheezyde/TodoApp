@@ -9,16 +9,20 @@ import UIKit
 import CoreData
 
 class ToDoListViewController: UITableViewController {
-    
+    var selectedCategory: Category? {
+        didSet {
+            loadData()
+        }
+    }
     var items = [Item]()
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+//    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
     
 
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        print(dataFilePath)
+//        print(dataFilePath)
        
        
 //
@@ -35,7 +39,6 @@ class ToDoListViewController: UITableViewController {
 //        items.append(newItem2)
 //        items.append(newItem3)
 //
-        loadData()
 //
         
 //        if let array = defaults.array(forKey: "itemsArray") {
@@ -61,13 +64,13 @@ class ToDoListViewController: UITableViewController {
     // Provide a cell object for each row.
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
        // Fetch a cell of the appropriate type.
-       let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = tableView.dequeueReusableCell(withIdentifier: K.identifier.toDoCell, for: indexPath)
        
        // Configure the cell’s contents.
         cell.textLabel!.text = items[indexPath.row].title
         
         cell.accessoryType = items[indexPath.row].isSelected ? .checkmark : .none
-        print("here?")
+
         print("the items are : \(items.first?.title)")
 //        if items[indexPath.row].isSelected == true {
 //            cell.accessoryType = .checkmark
@@ -101,17 +104,14 @@ class ToDoListViewController: UITableViewController {
         print("pressed")
         let alert = UIAlertController(title: "Add a new item", message: "smth", preferredStyle: .alert)
         let action = UIAlertAction(title: "add item", style: .default) { alert in
-
-            
             let newItem = Item(context: self.context)
             newItem.title = textField.text!
             newItem.isSelected = false
+            newItem.parentCategory = self.selectedCategory
             self.items.append(newItem)
             self.saveData()
             //                self.defaults.set(self.itemsString, forKey: "itemsArray")
-            
-            
-            
+
         }
         alert.addTextField { alertTextField in
             alertTextField.placeholder = "new item"
@@ -121,7 +121,7 @@ class ToDoListViewController: UITableViewController {
         present(alert, animated: true)
     }
     func saveData() {
-        let encoder = PropertyListEncoder()
+//        let encoder = PropertyListEncoder()
         do {
             try context.save()
         } catch {
@@ -131,7 +131,17 @@ class ToDoListViewController: UITableViewController {
         tableView.reloadData()
     }
     
-    func loadData(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+    func loadData(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil) {
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", (selectedCategory?.name)!)
+        if let additionalPredicate = predicate {
+            let compoundPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate,additionalPredicate])
+            request.predicate = compoundPredicate
+        } else {
+            request.predicate = categoryPredicate
+        }
+        
+        
+       
         do {
            items = try context.fetch(request)
             
@@ -139,6 +149,7 @@ class ToDoListViewController: UITableViewController {
         catch {
             print("Error fetching from context: \(error)")
         }
+        tableView.reloadData()
 
     }
     func deleteItem(index:Int) {
@@ -158,8 +169,19 @@ extension ToDoListViewController: UISearchBarDelegate {
         request.predicate = predicate
         let sortDescriptor = NSSortDescriptor(key: "title", ascending: true)
         request.sortDescriptors = [sortDescriptor]
-        loadData(with: request)
+        loadData(with: request, predicate: predicate )
+        DispatchQueue.main.async {
+            searchBar.resignFirstResponder()
+        }
         
+    }
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            loadData()
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+            }
+        }
     }
 }
 
